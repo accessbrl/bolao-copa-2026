@@ -192,6 +192,15 @@ public static class DatabaseCompatibilityPatches
 
         try
         {
+            db.Database.ExecuteSqlRaw("UPDATE users SET email = NULL WHERE email IS NOT NULL AND btrim(email) = '';");
+        }
+        catch
+        {
+            // Ignora se a tabela ainda não existir.
+        }
+
+        try
+        {
             db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS ux_users_name_lower ON users (lower(name));");
         }
         catch

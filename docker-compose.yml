@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: bolao-copa-2026-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bolao_copa_2026
+      POSTGRES_USER: bolao_user
+      POSTGRES_PASSWORD: bolao_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - bolao_pg_data:/var/lib/postgresql/data
+
+volumes:
+  bolao_pg_data:

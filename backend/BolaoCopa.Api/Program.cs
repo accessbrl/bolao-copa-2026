@@ -84,13 +84,26 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-var frontendUrl = builder.Configuration["FRONTEND_URL"] ?? "http://localhost:5173";
+var frontendUrl = builder.Configuration["FRONTEND_URL"];
+
+var allowedOrigins = new List<string>
+{
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://accessbrl.github.io"
+};
+
+if (!string.IsNullOrWhiteSpace(frontendUrl))
+{
+    allowedOrigins.Add(frontendUrl.TrimEnd('/'));
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("frontend", policy =>
     {
         policy
-            .WithOrigins(frontendUrl, "http://localhost:5173", "http://127.0.0.1:5173")
+            .WithOrigins(allowedOrigins.Distinct().ToArray())
             .AllowAnyHeader()
             .AllowAnyMethod();
     });

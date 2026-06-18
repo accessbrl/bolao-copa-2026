@@ -29,13 +29,14 @@ public class AuthController : ControllerBase
     {
         var name = NormalizeName(request.Name);
         var email = NormalizeEmail(request.Email);
+        var password = request.Password ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(name))
         {
             return BadRequest(new { message = "Informe o nome." });
         }
 
-        if (request.Password.Length < 6)
+        if (password.Length < 6)
         {
             return BadRequest(new { message = "A senha deve ter pelo menos 6 caracteres." });
         }
@@ -57,12 +58,24 @@ public class AuthController : ControllerBase
         {
             Name = name,
             Email = email,
-            PasswordHash = _passwordHasher.Hash(request.Password),
+            PasswordHash = _passwordHasher.Hash(password),
             Role = isFirstUser ? "admin" : "participant"
         };
 
         _db.Users.Add(user);
-        await _db.SaveChangesAsync();
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            return BadRequest(new { message = "Nome ou e-mail já cadastrado." });
+        }
+        catch (DbUpdateException)
+        {
+            return StatusCode(500, new { message = "Não foi possível criar o usuário no banco de dados." });
+        }
 
         var token = _tokenService.Generate(user);
         return Ok(new LoginResponse(token, ToUserDto(user)));
@@ -119,6 +132,23 @@ public class AuthController : ControllerBase
     {
         var email = value?.Trim().ToLowerInvariant();
         return string.IsNullOrWhiteSpace(email) ? null : email;
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        var current = ex.InnerException;
+        while (current is not null)
+        {
+            if (current.GetType().FullName == "Npgsql.PostgresException")
+            {
+                var sqlState = current.GetType().GetProperty("SqlState")?.GetValue(current)?.ToString();
+                return sqlState == "23505";
+            }
+
+            current = current.InnerException;
+        }
+
+        return false;
     }
 
     private static UserDto ToUserDto(AppUser user) => new(

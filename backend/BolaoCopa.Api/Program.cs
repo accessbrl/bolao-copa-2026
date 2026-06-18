@@ -84,8 +84,6 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-var frontendUrl = builder.Configuration["FRONTEND_URL"];
-
 var allowedOrigins = new List<string>
 {
     "http://localhost:5173",
@@ -93,6 +91,7 @@ var allowedOrigins = new List<string>
     "https://accessbrl.github.io"
 };
 
+var frontendUrl = builder.Configuration["FRONTEND_URL"];
 if (!string.IsNullOrWhiteSpace(frontendUrl))
 {
     allowedOrigins.Add(frontendUrl.TrimEnd('/'));
@@ -103,7 +102,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("frontend", policy =>
     {
         policy
-            .WithOrigins(allowedOrigins.Distinct().ToArray())
+            .WithOrigins(allowedOrigins.Distinct(StringComparer.OrdinalIgnoreCase).ToArray())
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -125,6 +124,12 @@ app.MapGet("/", () => Results.Ok(new
     app = "Bolão Copa do Mundo 2026",
     status = "online",
     swagger = "/swagger"
+}));
+
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    timestampUtc = DateTime.UtcNow
 }));
 
 using (var scope = app.Services.CreateScope())
@@ -176,7 +181,6 @@ public static class DatabaseUrlParser
     }
 }
 
-
 public static class DatabaseCompatibilityPatches
 {
     public static void Apply(AppDbContext db)
@@ -187,7 +191,7 @@ public static class DatabaseCompatibilityPatches
         }
         catch
         {
-            // Banco novo ou outro provider: ignora patch de compatibilidade.
+            // Banco novo ou tabela ainda inexistente: ignora patch de compatibilidade.
         }
 
         try
@@ -196,7 +200,7 @@ public static class DatabaseCompatibilityPatches
         }
         catch
         {
-            // Ignora se a tabela ainda não existir.
+            // Banco novo ou tabela ainda inexistente: ignora patch de compatibilidade.
         }
 
         try
